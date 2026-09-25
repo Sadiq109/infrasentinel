@@ -3,7 +3,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from .detectors import detect_brute_force
+from .detectors import detect_brute_force, detect_success_after_failures
 from .parser import parse_lines
 from .storage import connect, save_events
 
@@ -30,6 +30,7 @@ def main() -> int:
     connection = connect(args.database)
     inserted = save_events(connection, events)
     findings = detect_brute_force(connection, args.threshold)
+    findings += detect_success_after_failures(connection, args.threshold)
 
     if args.as_json:
         print(json.dumps({"inserted": inserted, "findings": [asdict(f) for f in findings]}, indent=2))

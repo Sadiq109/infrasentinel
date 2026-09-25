@@ -36,3 +36,47 @@ def detect_brute_force(
         )
         for row in rows
     ]
+
+
+def detect_success_after_failures(
+    connection: sqlite3.Connection, threshold: int = 5
+) -> list[Finding]:
+    """Flag a successful login from an IP right after repeated failures from that IP.
+
+    Syslog timestamps have no year, so events are compared in ingestion order
+    (row id). The failure count resets after each successful login, so a user
+    who mistypes a password a few times on different days is not stacked up
+    into one alert.
+    """
+    rows = connection.execute(
+        """
+        SELECT source_ip, outcome, username, occurred_at
+        FROM auth_events
+        WHERE source_ip IS NOT NULL
+        ORDER BY id
+        """
+    ).fetchall()
+    failures: dict[str, int] = {}
+    findings: list[Finding] = []
+    for row in rows:
+        ip = row["source_ip"]
+        if row["outcome"] in ("failed", "invalid_user"):
+            failures[ip] = failures.get(ip, 0) + 1
+            continue
+        if row["outcome"] != "accepted":
+            continue
+        count = failures.pop(ip, 0)
+        if count >= threshold:
+            findings.append(
+                Finding(
+                    rule="AUTH-SUCCESS-AFTER-FAILURES",
+                    severity="critical",
+                    source_ip=ip,
+                    count=count,
+                    summary=(
+                        f"login accepted for {row['username']} at {row['occurred_at']} "
+                        f"after {count} unsuccessful attempts"
+                    ),
+                )
+            )
+    return findings

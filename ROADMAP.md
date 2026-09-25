@@ -13,7 +13,7 @@
 
 - [x] Configurable repeated-failure threshold
 - [ ] Count attempts inside a configurable time window
-- [ ] Detect a successful login following repeated failures
+- [x] Detect a successful login following repeated failures
 - [ ] Add `summary` and `search` subcommands
 - [ ] Export findings to CSV and JSON Lines
 

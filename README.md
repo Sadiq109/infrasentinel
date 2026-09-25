@@ -2,7 +2,7 @@
 
 InfraSentinel is a privacy-first Python CLI that converts Linux authentication logs into structured SQLite records and security findings. It is designed as a practical IT operations and defensive-security project: ingest real system data locally, preserve evidence, run explainable detection rules, and make the results easy to query.
 
-> Status: early private build. The parser and first brute-force rule work end to end; more log sources and reporting are on the roadmap.
+> Status: early build. The parser and two detection rules work end to end; more log sources and reporting are on the roadmap.
 
 ## What works
 
@@ -10,6 +10,7 @@ InfraSentinel is a privacy-first Python CLI that converts Linux authentication l
 - Supports IPv4 and IPv6 source addresses
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
+- Flags a successful login that comes right after repeated failures from the same IP (a likely guessed password)
 - Emits human-readable or JSON output
 - Includes unit tests and safe synthetic sample data
 
@@ -26,8 +27,10 @@ infrasentinel sample_data/auth.log --threshold 5
 Expected finding from the synthetic sample:
 
 ```text
-Imported 6 new events into infrasentinel.db
+Imported 12 new events into infrasentinel.db
+[MEDIUM] AUTH-BRUTE-FORCE 192.0.2.44: 5 unsuccessful authentication attempts
 [MEDIUM] AUTH-BRUTE-FORCE 203.0.113.7: 5 unsuccessful authentication attempts
+[CRITICAL] AUTH-SUCCESS-AFTER-FAILURES 192.0.2.44: login accepted for ubuntu at Sep 20 10:20:22 after 5 unsuccessful attempts
 ```
 
 For machine-readable output:
@@ -48,7 +51,7 @@ The code uses only the Python standard library at runtime. This keeps the first 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Near-term work includes time-windowed detections, a summary command, anonymization, CSV export, and GitHub Actions checks.
+See [ROADMAP.md](ROADMAP.md). Near-term work includes time-windowed detections, a summary command, anonymization and CSV export.
 
 ## Why this project exists
 
