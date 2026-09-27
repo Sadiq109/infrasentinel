@@ -14,7 +14,8 @@
 - [x] Configurable repeated-failure threshold
 - [ ] Count attempts inside a configurable time window
 - [x] Detect a successful login following repeated failures
-- [ ] Add `summary` and `search` subcommands
+- [x] Add a summary mode for stored events
+- [ ] Add a search subcommand
 - [ ] Export findings to CSV and JSON Lines
 
 ## Milestone 3: safe operations

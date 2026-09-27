@@ -33,6 +33,15 @@ Imported 12 new events into infrasentinel.db
 [CRITICAL] AUTH-SUCCESS-AFTER-FAILURES 192.0.2.44: login accepted for ubuntu at Sep 20 10:20:22 after 5 unsuccessful attempts
 ```
 
+To inspect the stored database without importing another log, run:
+
+```bash
+infrasentinel --summary --database infrasentinel.db
+infrasentinel --summary --database infrasentinel.db --json
+```
+
+This reports outcome counts, distinct source IPs, and the top five sources of failed or invalid-user attempts. It never prints raw log lines. The database stays local and may contain sensitive IPs and usernames; use only synthetic data for public demos.
+
 For machine-readable output:
 
 ```bash
