@@ -37,3 +37,22 @@ def test_ignores_unsupported_line():
 def test_rejects_malformed_source_address(source, message):
     line = "Sep 20 10:15:01 web01 sshd[921]: " + message.format(source=source)
     assert parse_line(line) is None
+
+
+@pytest.mark.parametrize("service", ["sudo", "postfix", "nginx", "sshd-helper"])
+def test_does_not_classify_non_sshd_messages_as_auth_events(service):
+    # Other services may quote SSH failures in their own log messages.
+    line = (
+        f"Sep 20 10:15:01 web01 {service}[921]: "
+        "Failed password for root from 203.0.113.7 port 42 ssh2"
+    )
+    assert parse_line(line) is None
+
+
+def test_still_parses_sshd_message_without_pid():
+    event = parse_line(
+        "Sep 20 10:15:01 web01 sshd: "
+        "Failed password for root from 203.0.113.7 port 42 ssh2"
+    )
+    assert event is not None
+    assert event.service == "sshd"

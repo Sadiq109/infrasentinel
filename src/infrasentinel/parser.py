@@ -21,7 +21,7 @@ def parse_line(line: str) -> AuthEvent | None:
     """Parse a supported syslog authentication line without raising on unknown input."""
     line = line.rstrip("\n")
     prefix = _PREFIX.match(line)
-    if not prefix:
+    if not prefix or prefix.group("service") != "sshd":
         return None
 
     body = prefix.group("body")

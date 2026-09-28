@@ -6,7 +6,7 @@ InfraSentinel is a privacy-first Python CLI that converts Linux authentication l
 
 ## What works
 
-- Parses common OpenSSH accepted, failed-password, and invalid-user events
+- Parses common OpenSSH accepted, failed-password, and invalid-user events from `sshd` syslog entries only; similar text quoted by other services is ignored
 - Supports IPv4 and IPv6 source addresses, rejecting malformed source addresses rather than silently storing a partial match
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
