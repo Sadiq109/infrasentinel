@@ -4,6 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .detectors import detect_brute_force, detect_success_after_failures
+from .export import write_findings
 from .parser import parse_lines
 from .storage import connect, save_events
 from .summary import summarize
@@ -19,6 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--threshold", type=int, default=5)
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
+    parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
+    parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
     return parser
 
 
@@ -48,6 +51,8 @@ def main() -> int:
         return 0
     if args.logfile is None:
         raise SystemExit("A logfile is required unless --summary is set")
+    if args.export is not None and args.export.exists():
+        raise SystemExit(f"Export file already exists: {args.export}")
 
     with args.logfile.open(encoding="utf-8") as handle:
         events = list(parse_lines(handle))
@@ -56,6 +61,8 @@ def main() -> int:
     findings = detect_brute_force(connection, args.threshold)
     findings += detect_success_after_failures(connection, args.threshold)
 
+    if args.export is not None:
+        write_findings(args.export, findings, args.export_format)
     if args.as_json:
         print(json.dumps({"inserted": inserted, "findings": [asdict(f) for f in findings]}, indent=2))
     else:

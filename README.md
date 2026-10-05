@@ -11,7 +11,7 @@ InfraSentinel is a privacy-first Python CLI that converts Linux authentication l
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
 - Flags a successful login that comes right after repeated failures from the same IP (a likely guessed password)
-- Emits human-readable or JSON output
+- Emits human-readable or JSON output, and can export findings to CSV or JSON Lines
 - Includes unit tests and safe synthetic sample data
 
 ## Quick start
@@ -47,6 +47,15 @@ For machine-readable output:
 ```bash
 infrasentinel sample_data/auth.log --threshold 5 --json
 ```
+
+To save findings for a spreadsheet or another tool:
+
+```bash
+infrasentinel sample_data/auth.log --export findings.csv
+infrasentinel sample_data/auth.log --export findings.jsonl --export-format jsonl
+```
+
+The command refuses to overwrite an existing export file. CSV cells that start with `=`, `+`, `-` or `@` get a leading apostrophe, because usernames in a log are attacker-controlled and could otherwise run as spreadsheet formulas.
 
 All sample IPs use documentation-only ranges. Do not commit production logs, credentials, personal data, or generated `.db` files.
 

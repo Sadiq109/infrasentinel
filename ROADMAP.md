@@ -16,7 +16,7 @@
 - [x] Detect a successful login following repeated failures
 - [x] Add a summary mode for stored events
 - [ ] Add a search subcommand
-- [ ] Export findings to CSV and JSON Lines
+- [x] Export findings to CSV and JSON Lines
 
 ## Milestone 3: safe operations
 
