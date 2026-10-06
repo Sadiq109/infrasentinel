@@ -20,7 +20,7 @@
 
 ## Milestone 3: safe operations
 
-- [ ] Optional IP anonymization for demos
+- [x] Optional IP anonymization for demos
 - [ ] Document retention and deletion controls
 - [ ] Add a Docker image and read-only log mount example
 - [ ] Run tests and lint checks in GitHub Actions

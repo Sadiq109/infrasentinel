@@ -3,6 +3,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from .anonymize import IpAnonymizer
 from .detectors import detect_brute_force, detect_success_after_failures
 from .export import write_findings
 from .parser import parse_lines
@@ -21,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
     parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
+    parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
     return parser
 
@@ -61,6 +63,9 @@ def main() -> int:
     findings = detect_brute_force(connection, args.threshold)
     findings += detect_success_after_failures(connection, args.threshold)
 
+    if args.anonymize:
+        anonymizer = IpAnonymizer()
+        findings = [anonymizer.finding(f) for f in findings]
     if args.export is not None:
         write_findings(args.export, findings, args.export_format)
     if args.as_json:
