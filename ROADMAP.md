@@ -6,7 +6,8 @@
 - [x] Normalize events into SQLite
 - [x] Prevent duplicate ingestion
 - [x] Add parser and detection unit tests
-- [ ] Add year/timezone handling for traditional syslog timestamps
+- [x] Add year handling for traditional syslog timestamps (`--year`)
+- [ ] Record the log's time zone
 - [ ] Add fixture-based tests for malformed and rotated logs
 
 ## Milestone 2: useful detection and investigation

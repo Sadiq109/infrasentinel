@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
     parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
+    parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
     return parser
@@ -29,6 +30,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.year is not None and not 1970 <= args.year <= 9999:
+        raise SystemExit("--year must be between 1970 and 9999")
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
     if args.summary:
@@ -57,7 +60,7 @@ def main() -> int:
         raise SystemExit(f"Export file already exists: {args.export}")
 
     with args.logfile.open(encoding="utf-8") as handle:
-        events = list(parse_lines(handle))
+        events = list(parse_lines(handle, args.year))
     connection = connect(args.database)
     inserted = save_events(connection, events)
     findings = detect_brute_force(connection, args.threshold)
