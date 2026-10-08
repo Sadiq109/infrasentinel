@@ -57,6 +57,8 @@ infrasentinel sample_data/auth.log --export findings.jsonl --export-format jsonl
 
 The command refuses to overwrite an existing export file. CSV cells that start with `=`, `+`, `-` or `@` get a leading apostrophe, because usernames in a log are attacker-controlled and could otherwise run as spreadsheet formulas.
 
+To catch fast bursts, add `--window-seconds 60` (it needs `--year`). An IP is flagged as `AUTH-BRUTE-FORCE-WINDOW` when it has at least `--threshold` unsuccessful attempts inside any 60-second span, so slow failures spread over days no longer look like an attack. Events stored without a year are ignored by this rule.
+
 Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such as `2026-09-20T10:15:01` instead of `Sep 20 10:15:01`. Lines with a date that does not exist in that year (for example Feb 29 in 2026) are skipped. Without `--year`, behavior is unchanged. Time zones are not guessed: timestamps stay in the host's local time as logged.
 
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.

@@ -13,7 +13,7 @@
 ## Milestone 2: useful detection and investigation
 
 - [x] Configurable repeated-failure threshold
-- [ ] Count attempts inside a configurable time window
+- [x] Count attempts inside a configurable time window (`--window-seconds`)
 - [x] Detect a successful login following repeated failures
 - [x] Add a summary mode for stored events
 - [ ] Add a search subcommand

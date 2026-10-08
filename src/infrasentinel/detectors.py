@@ -1,5 +1,6 @@
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,50 @@ def detect_brute_force(
         )
         for row in rows
     ]
+
+
+def detect_brute_force_window(
+    connection: sqlite3.Connection, threshold: int, window_seconds: int
+) -> list[Finding]:
+    """Flag IPs with at least threshold failures inside any window_seconds span.
+
+    Only events with ISO timestamps (stored when a log is imported with
+    --year) can be placed in time; other events are ignored.
+    """
+    rows = connection.execute(
+        """
+        SELECT source_ip, occurred_at
+        FROM auth_events
+        WHERE outcome IN ('failed', 'invalid_user') AND source_ip IS NOT NULL
+        """
+    ).fetchall()
+    times: dict[str, list[datetime]] = {}
+    for row in rows:
+        try:
+            moment = datetime.fromisoformat(row["occurred_at"])
+        except ValueError:
+            continue
+        times.setdefault(row["source_ip"], []).append(moment)
+    span = timedelta(seconds=window_seconds)
+    findings = []
+    for ip, moments in times.items():
+        moments.sort()
+        best, start = 0, 0
+        for end, moment in enumerate(moments):
+            while moment - moments[start] > span:
+                start += 1
+            best = max(best, end - start + 1)
+        if best >= threshold:
+            findings.append(
+                Finding(
+                    rule="AUTH-BRUTE-FORCE-WINDOW",
+                    severity="high" if best >= threshold * 2 else "medium",
+                    source_ip=ip,
+                    count=best,
+                    summary=f"{best} unsuccessful attempts within {window_seconds} seconds",
+                )
+            )
+    return sorted(findings, key=lambda f: (-f.count, f.source_ip))
 
 
 def detect_success_after_failures(

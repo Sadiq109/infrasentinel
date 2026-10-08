@@ -4,7 +4,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .anonymize import IpAnonymizer
-from .detectors import detect_brute_force, detect_success_after_failures
+from .detectors import (
+    detect_brute_force,
+    detect_brute_force_window,
+    detect_success_after_failures,
+)
 from .export import write_findings
 from .parser import parse_lines
 from .storage import connect, save_events
@@ -22,6 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", dest="as_json")
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
     parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
+    parser.add_argument("--window-seconds", type=int, help="Also flag threshold failures inside this many seconds (needs --year)")
     parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
@@ -32,6 +37,10 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.year is not None and not 1970 <= args.year <= 9999:
         raise SystemExit("--year must be between 1970 and 9999")
+    if args.window_seconds is not None and args.window_seconds < 1:
+        raise SystemExit("--window-seconds must be at least 1")
+    if args.window_seconds is not None and args.year is None:
+        raise SystemExit("--window-seconds needs --year so events have full timestamps")
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
     if args.summary:
@@ -64,6 +73,8 @@ def main() -> int:
     connection = connect(args.database)
     inserted = save_events(connection, events)
     findings = detect_brute_force(connection, args.threshold)
+    if args.window_seconds is not None:
+        findings += detect_brute_force_window(connection, args.threshold, args.window_seconds)
     findings += detect_success_after_failures(connection, args.threshold)
 
     if args.anonymize:
