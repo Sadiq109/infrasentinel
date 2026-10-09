@@ -63,6 +63,8 @@ Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such
 
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.
 
+Damaged logs do not abort an import: invalid bytes are replaced and unparseable lines are skipped. A missing or unreadable log file exits with a short error instead of a traceback.
+
 All sample IPs use documentation-only ranges. Do not commit production logs, credentials, personal data, or generated `.db` files.
 
 ## Architecture

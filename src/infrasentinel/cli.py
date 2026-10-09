@@ -68,8 +68,12 @@ def main() -> int:
     if args.export is not None and args.export.exists():
         raise SystemExit(f"Export file already exists: {args.export}")
 
-    with args.logfile.open(encoding="utf-8") as handle:
-        events = list(parse_lines(handle, args.year))
+    try:
+        # Rotated or damaged logs can contain stray bytes; replace them rather than abort.
+        with args.logfile.open(encoding="utf-8", errors="replace") as handle:
+            events = list(parse_lines(handle, args.year))
+    except OSError as exc:
+        raise SystemExit(f"Cannot read log file {args.logfile}: {exc.strerror or exc}") from exc
     connection = connect(args.database)
     inserted = save_events(connection, events)
     findings = detect_brute_force(connection, args.threshold)
