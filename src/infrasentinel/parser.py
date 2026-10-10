@@ -22,7 +22,7 @@ def _with_year(timestamp: str, year: int) -> str | None:
     """Turn 'Sep 20 10:15:01' into '2026-09-20T10:15:01', or None if the date cannot exist."""
     try:
         # The year goes in the parsed string so Feb 29 is checked against the real year.
-        parsed = datetime.strptime(f"{year} {' '.join(timestamp.split())}", "%Y %b %d %H:%M:%S")  # noqa: DTZ007 - syslog has no zone
+        parsed = datetime.strptime(f"{year} {' '.join(timestamp.split())}", "%Y %b %d %H:%M:%S")
     except ValueError:
         return None
     return parsed.isoformat()
