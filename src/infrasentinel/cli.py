@@ -11,7 +11,7 @@ from .detectors import (
 )
 from .export import write_findings
 from .parser import parse_lines
-from .storage import connect, save_events
+from .storage import connect, purge_events, save_events
 from .summary import summarize
 
 
@@ -27,6 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
     parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
     parser.add_argument("--window-seconds", type=int, help="Also flag threshold failures inside this many seconds (needs --year)")
+    parser.add_argument("--purge", action="store_true", help="Delete all stored events from the database (needs --yes)")
+    parser.add_argument("--yes", action="store_true", help="Confirm a destructive action such as --purge")
     parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
@@ -43,6 +45,18 @@ def main() -> int:
         raise SystemExit("--window-seconds needs --year so events have full timestamps")
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
+    if args.purge:
+        if args.logfile is not None or args.summary or args.export is not None:
+            raise SystemExit("--purge cannot be combined with a logfile, --summary or --export")
+        if not args.yes:
+            raise SystemExit("--purge deletes all stored events; add --yes to confirm")
+        if not args.database.is_file():
+            raise SystemExit(f"Database does not exist: {args.database}")
+        connection = connect(args.database)
+        removed = purge_events(connection)
+        connection.close()
+        print(f"Deleted {removed} stored events from {args.database}")
+        return 0
     if args.summary:
         if args.logfile is not None:
             raise SystemExit("--summary does not accept a logfile")

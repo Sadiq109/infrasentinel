@@ -22,7 +22,7 @@
 ## Milestone 3: safe operations
 
 - [x] Optional IP anonymization for demos
-- [ ] Document retention and deletion controls
+- [x] Document retention and deletion controls (`--purge`)
 - [ ] Add a Docker image and read-only log mount example
 - [ ] Run tests and lint checks in GitHub Actions
 - [ ] Add a small dashboard only after the CLI and data model are stable

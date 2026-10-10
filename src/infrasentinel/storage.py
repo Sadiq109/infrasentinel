@@ -51,3 +51,12 @@ def save_events(connection: sqlite3.Connection, events: Iterable[AuthEvent]) -> 
     )
     connection.commit()
     return connection.total_changes - before
+
+
+def purge_events(connection: sqlite3.Connection) -> int:
+    """Delete every stored event and return how many rows were removed."""
+    count = connection.execute("SELECT COUNT(*) FROM auth_events").fetchone()[0]
+    connection.execute("DELETE FROM auth_events")
+    connection.commit()
+    connection.execute("VACUUM")  # rewrite the file so deleted rows are not left on disk
+    return count

@@ -65,6 +65,16 @@ For demos or screenshots, add `--anonymize` to replace source IPs with labels su
 
 Damaged logs do not abort an import: invalid bytes are replaced and unparseable lines are skipped. A missing or unreadable log file exits with a short error instead of a traceback.
 
+## Retention and deletion
+
+Events stay in the local SQLite file until you delete them. To remove every stored event and compact the file so deleted rows are not left on disk:
+
+```bash
+infrasentinel --purge --yes --database infrasentinel.db
+```
+
+`--yes` is required, the command refuses a database that does not exist (it never creates one), and it cannot be combined with an import, `--summary` or `--export`. Exported CSV or JSONL files are separate copies; delete them yourself. Deleting the `.db` file works too.
+
 All sample IPs use documentation-only ranges. Do not commit production logs, credentials, personal data, or generated `.db` files.
 
 ## Architecture
