@@ -16,7 +16,7 @@
 - [x] Count attempts inside a configurable time window (`--window-seconds`)
 - [x] Detect a successful login following repeated failures
 - [x] Add a summary mode for stored events
-- [ ] Add a search subcommand
+- [x] Add a search mode (`--search`)
 - [x] Export findings to CSV and JSON Lines
 
 ## Milestone 3: safe operations

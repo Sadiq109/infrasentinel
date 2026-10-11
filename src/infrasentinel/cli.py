@@ -11,7 +11,7 @@ from .detectors import (
 )
 from .export import write_findings
 from .parser import parse_lines
-from .storage import connect, purge_events, save_events
+from .storage import connect, purge_events, save_events, search_events
 from .summary import summarize
 
 
@@ -27,6 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
     parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
     parser.add_argument("--window-seconds", type=int, help="Also flag threshold failures inside this many seconds (needs --year)")
+    parser.add_argument("--search", action="store_true", help="List stored events matching --ip, --user and/or --outcome")
+    parser.add_argument("--ip", help="With --search: exact source IP")
+    parser.add_argument("--user", help="With --search: exact username")
+    parser.add_argument("--outcome", choices=("failed", "accepted", "invalid_user"), help="With --search: event outcome")
+    parser.add_argument("--limit", type=int, default=50, help="With --search: maximum rows (default 50)")
     parser.add_argument("--purge", action="store_true", help="Delete all stored events from the database (needs --yes)")
     parser.add_argument("--yes", action="store_true", help="Confirm a destructive action such as --purge")
     parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
@@ -45,6 +50,28 @@ def main() -> int:
         raise SystemExit("--window-seconds needs --year so events have full timestamps")
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
+    if args.search:
+        if args.logfile is not None or args.purge or args.summary or args.export is not None:
+            raise SystemExit("--search cannot be combined with a logfile, --purge, --summary or --export")
+        if args.limit < 1:
+            raise SystemExit("--limit must be at least 1")
+        if not args.database.is_file():
+            raise SystemExit(f"Database does not exist: {args.database}")
+        connection = connect(args.database)
+        rows = search_events(connection, args.ip, args.user, args.outcome, args.limit)
+        connection.close()
+        if args.anonymize:
+            anonymizer = IpAnonymizer()
+            for row in rows:
+                if row["source_ip"] is not None:
+                    row["source_ip"] = anonymizer.label(row["source_ip"])
+        if args.as_json:
+            print(json.dumps(rows, indent=2))
+        else:
+            for row in rows:
+                print(f"{row['occurred_at']} {row['hostname']} {row['outcome']} user={row['username']} ip={row['source_ip']}")
+            print(f"{len(rows)} matching events")
+        return 0
     if args.purge:
         if args.logfile is not None or args.summary or args.export is not None:
             raise SystemExit("--purge cannot be combined with a logfile, --summary or --export")

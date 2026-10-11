@@ -65,6 +65,15 @@ For demos or screenshots, add `--anonymize` to replace source IPs with labels su
 
 Damaged logs do not abort an import: invalid bytes are replaced and unparseable lines are skipped. A missing or unreadable log file exits with a short error instead of a traceback.
 
+## Searching stored events
+
+```bash
+infrasentinel --search --ip 203.0.113.7
+infrasentinel --search --user root --outcome failed --limit 10 --json
+```
+
+Filters are exact matches and combine with AND. Results are oldest first, capped by `--limit` (default 50), and show only parsed fields, never raw log lines. `--anonymize` masks IPs in the results. It never creates a database and cannot be combined with an import, `--purge`, `--summary` or `--export`.
+
 ## Retention and deletion
 
 Events stay in the local SQLite file until you delete them. To remove every stored event and compact the file so deleted rows are not left on disk:

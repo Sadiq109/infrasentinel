@@ -60,3 +60,27 @@ def purge_events(connection: sqlite3.Connection) -> int:
     connection.commit()
     connection.execute("VACUUM")  # rewrite the file so deleted rows are not left on disk
     return count
+
+
+def search_events(
+    connection: sqlite3.Connection,
+    ip: str | None = None,
+    user: str | None = None,
+    outcome: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, str | None]]:
+    """Return stored events matching every given filter, oldest first.
+
+    Raw log lines are never returned; they can hold more than the parsed fields.
+    """
+    clauses, params = [], []
+    for column, value in (("source_ip", ip), ("username", user), ("outcome", outcome)):
+        if value is not None:
+            clauses.append(f"{column} = ?")
+            params.append(value)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    rows = connection.execute(
+        f"SELECT occurred_at, hostname, outcome, username, source_ip FROM auth_events {where} ORDER BY id LIMIT ?",
+        (*params, limit),
+    ).fetchall()
+    return [dict(row) for row in rows]
