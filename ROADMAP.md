@@ -23,6 +23,6 @@
 
 - [x] Optional IP anonymization for demos
 - [x] Document retention and deletion controls (`--purge`)
-- [ ] Add a Docker image and read-only log mount example
-- [ ] Run tests and lint checks in GitHub Actions
+- [x] Add a Docker image and read-only log mount example
+- [x] Run tests and lint checks in GitHub Actions
 - [ ] Add a small dashboard only after the CLI and data model are stable

@@ -15,3 +15,14 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: ruff check .
       - run: pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t infrasentinel .
+      - name: Analyze the sample log from a read-only mount
+        run: |
+          docker run --rm -v "$PWD/sample_data:/logs:ro" \
+            infrasentinel /logs/auth.log --database /tmp/infrasentinel.db --threshold 5 | tee output.txt
+          grep -q "AUTH-SUCCESS-AFTER-FAILURES" output.txt

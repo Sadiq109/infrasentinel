@@ -86,6 +86,15 @@ infrasentinel --purge --yes --database infrasentinel.db
 
 All sample IPs use documentation-only ranges. Do not commit production logs, credentials, personal data, or generated `.db` files.
 
+## Run with Docker
+
+```bash
+docker build -t infrasentinel .
+docker run --rm -v "$PWD/sample_data:/logs:ro" infrasentinel /logs/auth.log --database /tmp/infrasentinel.db --threshold 5
+```
+
+The log directory mounts read-only (`:ro`), so the container can read logs but never change them. The database lives at `/tmp` inside the container and disappears with `--rm`; to keep it between runs, mount a volume such as `-v infrasentinel-data:/data` and use `--database /data/infrasentinel.db`. CI builds the image and runs this exact read-only analysis on every push.
+
 ## Architecture
 
 ```text
@@ -96,7 +105,7 @@ The code uses only the Python standard library at runtime. This keeps the first 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Near-term work includes time-windowed detections, a summary command, anonymization and CSV export.
+See [ROADMAP.md](ROADMAP.md). Near-term work includes recording the log's time zone and a small dashboard once the CLI and data model are stable.
 
 ## Why this project exists
 
