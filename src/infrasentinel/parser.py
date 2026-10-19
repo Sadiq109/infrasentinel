@@ -1,7 +1,8 @@
 import ipaddress
 import re
 from collections.abc import Iterable, Iterator
-from datetime import datetime
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .models import AuthEvent
 
@@ -18,21 +19,50 @@ _ACCEPTED = re.compile(
 _INVALID = re.compile(r"Invalid user (?P<user>\S+) from (?P<ip>\S+)")
 
 
-def _with_year(timestamp: str, year: int) -> str | None:
-    """Turn 'Sep 20 10:15:01' into '2026-09-20T10:15:01', or None if the date cannot exist."""
+def parse_timezone(value: str) -> tzinfo:
+    """Parse UTC, a fixed +HH:MM / -HH:MM offset, or an IANA zone name."""
+    text = value.strip()
+    if text.upper() in ("UTC", "Z"):
+        return UTC
+    match = re.fullmatch(r"([+-])(\d{2}):?(\d{2})", text)
+    if match:
+        sign, hours, minutes = match.groups()
+        if int(hours) > 23 or int(minutes) > 59:
+            raise ValueError(f"invalid UTC offset {value!r}")
+        offset = timedelta(hours=int(hours), minutes=int(minutes))
+        return timezone(-offset if sign == "-" else offset)
+    try:
+        return ZoneInfo(text)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError(
+            f"unknown time zone {value!r}; use UTC, an offset like -05:00, "
+            "or an IANA name like America/Chicago"
+        ) from None
+
+
+def _with_year(timestamp: str, year: int, tz: tzinfo | None = None) -> str | None:
+    """Turn 'Sep 20 10:15:01' into '2026-09-20T10:15:01', or None if the date cannot exist.
+
+    With *tz* the result records the log's time zone, for example
+    '2026-09-20T10:15:01-05:00'. The logged local time is never converted.
+    """
     try:
         # The year goes in the parsed string so Feb 29 is checked against the real year.
         parsed = datetime.strptime(f"{year} {' '.join(timestamp.split())}", "%Y %b %d %H:%M:%S")
     except ValueError:
         return None
+    if tz is not None:
+        parsed = parsed.replace(tzinfo=tz)
     return parsed.isoformat()
 
 
-def parse_line(line: str, year: int | None = None) -> AuthEvent | None:
+def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> AuthEvent | None:
     """Parse a supported syslog authentication line without raising on unknown input.
 
-    Syslog timestamps have no year. With *year*, occurred_at becomes an ISO
-    timestamp; lines whose date does not exist in that year are skipped.
+    Syslog timestamps have no year and no time zone. With *year*, occurred_at
+    becomes an ISO timestamp; lines whose date does not exist in that year are
+    skipped. With *tz*, the ISO timestamp records the log's time zone as a UTC
+    offset. Without *tz*, no zone is guessed.
     """
     line = line.rstrip("\n")
     prefix = _PREFIX.match(line)
@@ -54,7 +84,7 @@ def parse_line(line: str, year: int | None = None) -> AuthEvent | None:
                 return None
             occurred_at = prefix.group("timestamp")
             if year is not None:
-                occurred_at = _with_year(occurred_at, year)
+                occurred_at = _with_year(occurred_at, year, tz)
                 if occurred_at is None:
                     return None
             return AuthEvent(
@@ -69,8 +99,8 @@ def parse_line(line: str, year: int | None = None) -> AuthEvent | None:
     return None
 
 
-def parse_lines(lines: Iterable[str], year: int | None = None) -> Iterator[AuthEvent]:
+def parse_lines(lines: Iterable[str], year: int | None = None, tz: tzinfo | None = None) -> Iterator[AuthEvent]:
     for line in lines:
-        event = parse_line(line, year)
+        event = parse_line(line, year, tz)
         if event is not None:
             yield event

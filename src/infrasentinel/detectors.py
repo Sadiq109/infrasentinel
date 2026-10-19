@@ -54,32 +54,37 @@ def detect_brute_force_window(
         WHERE outcome IN ('failed', 'invalid_user') AND source_ip IS NOT NULL
         """
     ).fetchall()
-    times: dict[str, list[datetime]] = {}
+    # Keyed by IP and awareness: a naive timestamp cannot be placed in
+    # absolute time, so it never shares a window with zoned timestamps.
+    times: dict[tuple[str, bool], list[datetime]] = {}
     for row in rows:
         try:
             moment = datetime.fromisoformat(row["occurred_at"])
         except ValueError:
             continue
-        times.setdefault(row["source_ip"], []).append(moment)
+        times.setdefault((row["source_ip"], moment.tzinfo is not None), []).append(moment)
     span = timedelta(seconds=window_seconds)
-    findings = []
-    for ip, moments in times.items():
+    best_by_ip: dict[str, int] = {}
+    for (ip, _), moments in times.items():
         moments.sort()
         best, start = 0, 0
         for end, moment in enumerate(moments):
             while moment - moments[start] > span:
                 start += 1
             best = max(best, end - start + 1)
-        if best >= threshold:
-            findings.append(
-                Finding(
-                    rule="AUTH-BRUTE-FORCE-WINDOW",
-                    severity="high" if best >= threshold * 2 else "medium",
-                    source_ip=ip,
-                    count=best,
-                    summary=f"{best} unsuccessful attempts within {window_seconds} seconds",
-                )
-            )
+        if best > best_by_ip.get(ip, 0):
+            best_by_ip[ip] = best
+    findings = [
+        Finding(
+            rule="AUTH-BRUTE-FORCE-WINDOW",
+            severity="high" if best >= threshold * 2 else "medium",
+            source_ip=ip,
+            count=best,
+            summary=f"{best} unsuccessful attempts within {window_seconds} seconds",
+        )
+        for ip, best in best_by_ip.items()
+        if best >= threshold
+    ]
     return sorted(findings, key=lambda f: (-f.count, f.source_ip))
 
 

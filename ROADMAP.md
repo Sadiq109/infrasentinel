@@ -7,7 +7,7 @@
 - [x] Prevent duplicate ingestion
 - [x] Add parser and detection unit tests
 - [x] Add year handling for traditional syslog timestamps (`--year`)
-- [ ] Record the log's time zone
+- [x] Record the log's time zone
 - [x] Add fixture-based tests for malformed and damaged logs (invalid bytes, missing file)
 
 ## Milestone 2: useful detection and investigation

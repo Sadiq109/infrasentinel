@@ -10,7 +10,7 @@ from .detectors import (
     detect_success_after_failures,
 )
 from .export import write_findings
-from .parser import parse_lines
+from .parser import parse_lines, parse_timezone
 from .storage import connect, purge_events, save_events, search_events
 from .summary import summarize
 
@@ -35,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--purge", action="store_true", help="Delete all stored events from the database (needs --yes)")
     parser.add_argument("--yes", action="store_true", help="Confirm a destructive action such as --purge")
     parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
+    parser.add_argument(
+        "--timezone",
+        metavar="TZ",
+        help="time zone the log was written in: UTC, an offset like -05:00, or an IANA name like America/Chicago (needs --year)",
+    )
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
     return parser
@@ -48,6 +53,14 @@ def main() -> int:
         raise SystemExit("--window-seconds must be at least 1")
     if args.window_seconds is not None and args.year is None:
         raise SystemExit("--window-seconds needs --year so events have full timestamps")
+    if args.timezone is not None and args.year is None:
+        raise SystemExit("--timezone needs --year so events have full timestamps")
+    tz = None
+    if args.timezone is not None:
+        try:
+            tz = parse_timezone(args.timezone)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
     if args.search:
@@ -112,7 +125,7 @@ def main() -> int:
     try:
         # Rotated or damaged logs can contain stray bytes; replace them rather than abort.
         with args.logfile.open(encoding="utf-8", errors="replace") as handle:
-            events = list(parse_lines(handle, args.year))
+            events = list(parse_lines(handle, args.year, tz))
     except OSError as exc:
         raise SystemExit(f"Cannot read log file {args.logfile}: {exc.strerror or exc}") from exc
     connection = connect(args.database)
