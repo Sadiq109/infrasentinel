@@ -76,6 +76,14 @@ infrasentinel --search --user root --outcome failed --limit 10 --json
 
 Filters are exact matches and combine with AND. Results are oldest first, capped by `--limit` (default 50), and show only parsed fields, never raw log lines. `--anonymize` masks IPs in the results. It never creates a database and cannot be combined with an import, `--purge`, `--summary` or `--export`.
 
+## HTML report
+
+```bash
+infrasentinel --report report.html --database infrasentinel.db
+```
+
+This writes one self-contained HTML file: outcome counts, distinct sources, the top sources of unsuccessful attempts, and the findings at the selected threshold. There are no external scripts or fonts, so the file works offline and contacts nothing. It never overwrites an existing file and shows parsed fields only, never raw log lines. `--anonymize` masks IPs in the report. Treat the file as sensitive before sharing it.
+
 ## Retention and deletion
 
 Events stay in the local SQLite file until you delete them. To remove every stored event and compact the file so deleted rows are not left on disk:
@@ -107,7 +115,7 @@ The code uses only the Python standard library at runtime. This keeps the first 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Near-term work includes recording the log's time zone and a small dashboard once the CLI and data model are stable.
+See [ROADMAP.md](ROADMAP.md). All three milestones are complete; further work means new log sources and reporting.
 
 ## Why this project exists
 
