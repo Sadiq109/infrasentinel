@@ -25,4 +25,4 @@
 - [x] Document retention and deletion controls (`--purge`)
 - [x] Add a Docker image and read-only log mount example
 - [x] Run tests and lint checks in GitHub Actions
-- [ ] Add a small dashboard only after the CLI and data model are stable
+- [x] Add a small dashboard only after the CLI and data model are stable
