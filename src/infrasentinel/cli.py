@@ -38,6 +38,47 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timezone",
         metavar="TZ",
+import json
+from dataclasses import asdict
+from pathlib import Path
+
+from .anonymize import IpAnonymizer
+from .detectors import (
+    detect_brute_force,
+    detect_brute_force_window,
+    detect_success_after_failures,
+)
+from .export import write_findings
+from .parser import parse_lines, parse_timezone
+from .report import write_report
+from .storage import connect, purge_events, save_events, search_events
+from .summary import summarize
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="infrasentinel",
+        description="Parse Linux authentication logs and surface suspicious activity.",
+    )
+    parser.add_argument("logfile", type=Path, nargs="?", help="Path to a syslog/auth.log file")
+    parser.add_argument("--database", type=Path, default=Path("infrasentinel.db"))
+    parser.add_argument("--threshold", type=int, default=5)
+    parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--summary", action="store_true", help="Summarize stored events without importing a log")
+    parser.add_argument("--export", type=Path, help="Write findings to this file (never overwrites an existing file)")
+    parser.add_argument("--window-seconds", type=int, help="Also flag threshold failures inside this many seconds (needs --year)")
+    parser.add_argument("--search", action="store_true", help="List stored events matching --ip, --user and/or --outcome")
+    parser.add_argument("--ip", help="With --search: exact source IP")
+    parser.add_argument("--user", help="With --search: exact username")
+    parser.add_argument("--outcome", choices=("failed", "accepted", "invalid_user"), help="With --search: event outcome")
+    parser.add_argument("--limit", type=int, default=50, help="With --search: maximum rows (default 50)")
+    parser.add_argument("--purge", action="store_true", help="Delete all stored events from the database (needs --yes)")
+    parser.add_argument("--report", type=Path, help="Write a self-contained HTML report of stored events and findings (never overwrites)")
+    parser.add_argument("--yes", action="store_true", help="Confirm a destructive action such as --purge")
+    parser.add_argument("--year", type=int, help="Year of the log (syslog timestamps have none); stores ISO timestamps")
+    parser.add_argument(
+        "--timezone",
+        metavar="TZ",
         help="time zone the log was written in: UTC, an offset like -05:00, or an IANA name like America/Chicago (needs --year)",
     )
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
@@ -61,6 +102,10 @@ def main() -> int:
             tz = parse_timezone(args.timezone)
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
+    if args.report is not None and (
+        args.logfile is not None or args.summary or args.search or args.export is not None or args.purge
+    ):
+        raise SystemExit("--report cannot be combined with a logfile, --summary, --search, --export or --purge")
     if args.threshold < 1:
         raise SystemExit("--threshold must be at least 1")
     if args.search:
@@ -117,8 +162,31 @@ def main() -> int:
                 for row in report["top_failed_sources"]:
                     print(f"  {row['source_ip']}: {row['attempts']}")
         return 0
+    if args.report is not None:
+        if args.report.exists():
+            raise SystemExit(f"Report file already exists: {args.report}")
+        if not args.database.is_file():
+            raise SystemExit(f"Database does not exist: {args.database}")
+        connection = connect(args.database)
+        report = summarize(connection)
+        findings = detect_brute_force(connection, args.threshold)
+        findings += detect_success_after_failures(connection, args.threshold)
+        connection.close()
+        if args.anonymize:
+            anonymizer = IpAnonymizer()
+            findings = [anonymizer.finding(f) for f in findings]
+            report = {
+                **report,
+                "top_failed_sources": [
+                    {**row, "source_ip": anonymizer.label(row["source_ip"])}
+                    for row in report["top_failed_sources"]
+                ],
+            }
+        write_report(args.report, report, findings)
+        print(f"Wrote HTML report to {args.report}")
+        return 0
     if args.logfile is None:
-        raise SystemExit("A logfile is required unless --summary is set")
+        raise SystemExit("A logfile is required unless --summary or --report is set")
     if args.export is not None and args.export.exists():
         raise SystemExit(f"Export file already exists: {args.export}")
 
