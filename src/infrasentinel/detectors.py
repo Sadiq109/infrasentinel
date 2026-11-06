@@ -130,3 +130,38 @@ def detect_success_after_failures(
                 )
             )
     return findings
+
+
+def detect_sudo_repeated_failures(
+    connection: sqlite3.Connection, threshold: int = 5
+) -> list[Finding]:
+    """Flag local users with at least threshold failed sudo authentications.
+
+    Failed sudo attempts are often just a mistyped password, so this finding
+    reports the count without claiming misuse. sudo events are local and carry
+    no source IP, so the subject reads "local" instead of an address.
+    """
+    rows = connection.execute(
+        """
+        SELECT username, COUNT(*) AS attempts
+        FROM auth_events
+        WHERE outcome = 'sudo_failed' AND username IS NOT NULL
+        GROUP BY username
+        HAVING COUNT(*) >= ?
+        ORDER BY attempts DESC, username
+        """,
+        (threshold,),
+    ).fetchall()
+    return [
+        Finding(
+            rule="SUDO-REPEATED-FAILURES",
+            severity="medium",
+            source_ip="local",
+            count=row["attempts"],
+            summary=(
+                f"{row['attempts']} failed sudo authentication attempts "
+                f"for user {row['username']}"
+            ),
+        )
+        for row in rows
+    ]
