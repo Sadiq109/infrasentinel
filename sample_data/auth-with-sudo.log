@@ -1,0 +1,7 @@
+Nov  6 14:23:01 web01 sudo: pam_unix(sudo:auth): authentication failure; logname=alex uid=1000 euid=0 tty=/dev/pts/0 ruser=alex rhost=  user=alex
+Nov  6 14:23:15 web01 sudo: pam_unix(sudo:auth): authentication failure; logname=alex uid=1000 euid=0 tty=/dev/pts/0 ruser=alex rhost=  user=alex
+Nov  6 14:23:30 web01 sudo: pam_unix(sudo:auth): authentication failure; logname=alex uid=1000 euid=0 tty=/dev/pts/0 ruser=alex rhost=  user=alex
+Nov  6 14:23:44 web01 sudo: pam_unix(sudo:auth): authentication failure; logname=alex uid=1000 euid=0 tty=/dev/pts/0 ruser=alex rhost=  user=alex
+Nov  6 14:23:59 web01 sudo: pam_unix(sudo:auth): authentication failure; logname=alex uid=1000 euid=0 tty=/dev/pts/0 ruser=alex rhost=  user=alex
+Nov  6 14:24:10 web01 sudo:     alex : TTY=pts/0 ; PWD=/home/alex ; USER=root ; COMMAND=/usr/bin/apt update
+Nov  6 14:24:10 web01 sudo: pam_unix(sudo:session): session opened for user root by alex(uid=1000)
