@@ -17,6 +17,10 @@ _ACCEPTED = re.compile(
     r"Accepted (?:password|publickey) for (?P<user>\S+) from (?P<ip>\S+)"
 )
 _INVALID = re.compile(r"Invalid user (?P<user>\S+) from (?P<ip>\S+)")
+_SUDO_AUTH_FAILURE = re.compile(
+    r"pam_unix\(sudo:auth\): authentication failure;(?P<fields>.*)$"
+)
+_SUDO_FIELD = re.compile(r"(\w+)=([^ ]*)")
 
 
 def parse_timezone(value: str) -> tzinfo:
@@ -66,10 +70,15 @@ def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> 
     """
     line = line.rstrip("\n")
     prefix = _PREFIX.match(line)
-    if not prefix or prefix.group("service") != "sshd":
+    if not prefix:
+        return None
+    service = prefix.group("service")
+    body = prefix.group("body")
+    if service == "sudo":
+        return _parse_sudo_line(prefix, body, line, year, tz)
+    if service != "sshd":
         return None
 
-    body = prefix.group("body")
     for outcome, pattern in (
         ("failed", _FAILED),
         ("accepted", _ACCEPTED),
@@ -97,6 +106,36 @@ def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> 
                 raw_line=line,
             )
     return None
+
+
+def _parse_sudo_line(
+    prefix: re.Match[str], body: str, line: str, year: int | None, tz: tzinfo | None
+) -> AuthEvent | None:
+    """Parse a sudo authentication failure.
+
+    Only pam_unix(sudo:auth) failures are classified; other sudo lines (session
+    notices, command logs, or quoted SSH text) are ignored. sudo is local, so
+    the event carries the local username and no source IP.
+    """
+    match = _SUDO_AUTH_FAILURE.search(body)
+    if not match:
+        return None
+    fields = dict(_SUDO_FIELD.findall(match.group("fields")))
+    username = fields.get("user") or fields.get("ruser") or fields.get("logname") or None
+    occurred_at = prefix.group("timestamp")
+    if year is not None:
+        occurred_at = _with_year(occurred_at, year, tz)
+        if occurred_at is None:
+            return None
+    return AuthEvent(
+        occurred_at=occurred_at,
+        hostname=prefix.group("host"),
+        service="sudo",
+        outcome="sudo_failed",
+        username=username,
+        source_ip=None,
+        raw_line=line,
+    )
 
 
 def parse_lines(lines: Iterable[str], year: int | None = None, tz: tzinfo | None = None) -> Iterator[AuthEvent]:
