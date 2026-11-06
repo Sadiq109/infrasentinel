@@ -2,11 +2,12 @@
 
 InfraSentinel is a privacy-first Python CLI that converts Linux authentication logs into structured SQLite records and security findings. It is designed as a practical IT operations and defensive-security project: ingest real system data locally, preserve evidence, run explainable detection rules, and make the results easy to query.
 
-> Status: early build. The parser and two detection rules work end to end; more log sources and reporting are on the roadmap.
+> Status: early build. The parser and detection rules work end to end; more log sources and reporting are on the roadmap.
 
 ## What works
 
 - Parses common OpenSSH accepted, failed-password, and invalid-user events from `sshd` syslog entries only; similar text quoted by other services is ignored
+- Parses `sudo` authentication failures (`pam_unix(sudo:auth)`) with the local username; sudo events are local, carry no source IP, and never feed the IP-based rules
 - Supports IPv4 and IPv6 source addresses, rejecting malformed source addresses rather than silently storing a partial match
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
@@ -66,6 +67,18 @@ Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.
 
 Damaged logs do not abort an import: invalid bytes are replaced and unparseable lines are skipped. A missing or unreadable log file exits with a short error instead of a traceback.
+
+## sudo authentication failures
+
+`pam_unix(sudo:auth)` failures are stored with the outcome `sudo_failed` and the local username (from `user=`, falling back to `ruser=` or `logname=`). sudo runs locally, so these events carry no source IP and never feed the IP-based rules. A user with at least `--threshold` failed sudo authentications is reported:
+
+```text
+$ infrasentinel sample_data/auth-with-sudo.log --threshold 5
+Imported 5 new events into infrasentinel.db
+[MEDIUM] SUDO-REPEATED-FAILURES local: 5 failed sudo authentication attempts for user alex
+```
+
+Failed sudo attempts are often a mistyped password, so the finding reports the count without claiming misuse. `--anonymize` leaves the `local` subject untouched, and `--search --outcome sudo_failed` lists the stored events. sudo session notices and command logs are ignored.
 
 ## Searching stored events
 

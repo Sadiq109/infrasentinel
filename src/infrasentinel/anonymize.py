@@ -1,3 +1,4 @@
+import ipaddress
 from dataclasses import replace
 
 from .detectors import Finding
@@ -20,4 +21,10 @@ class IpAnonymizer:
         return self._labels[ip]
 
     def finding(self, finding: Finding) -> Finding:
+        try:
+            ipaddress.ip_address(finding.source_ip)
+        except ValueError:
+            # A non-IP subject (for example "local" on sudo findings) has no
+            # address to mask.
+            return finding
         return replace(finding, source_ip=self.label(finding.source_ip))

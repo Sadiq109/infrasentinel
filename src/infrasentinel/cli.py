@@ -8,6 +8,7 @@ from .detectors import (
     detect_brute_force,
     detect_brute_force_window,
     detect_success_after_failures,
+    detect_sudo_repeated_failures,
 )
 from .export import write_findings
 from .parser import parse_lines, parse_timezone
@@ -31,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--search", action="store_true", help="List stored events matching --ip, --user and/or --outcome")
     parser.add_argument("--ip", help="With --search: exact source IP")
     parser.add_argument("--user", help="With --search: exact username")
-    parser.add_argument("--outcome", choices=("failed", "accepted", "invalid_user"), help="With --search: event outcome")
+    parser.add_argument("--outcome", choices=("failed", "accepted", "invalid_user", "sudo_failed"), help="With --search: event outcome")
     parser.add_argument("--limit", type=int, default=50, help="With --search: maximum rows (default 50)")
     parser.add_argument("--purge", action="store_true", help="Delete all stored events from the database (needs --yes)")
     parser.add_argument("--report", type=Path, help="Write a self-contained HTML report of stored events and findings (never overwrites)")
@@ -132,6 +133,7 @@ def main() -> int:
         report = summarize(connection)
         findings = detect_brute_force(connection, args.threshold)
         findings += detect_success_after_failures(connection, args.threshold)
+        findings += detect_sudo_repeated_failures(connection, args.threshold)
         connection.close()
         if args.anonymize:
             anonymizer = IpAnonymizer()
@@ -163,6 +165,7 @@ def main() -> int:
     if args.window_seconds is not None:
         findings += detect_brute_force_window(connection, args.threshold, args.window_seconds)
     findings += detect_success_after_failures(connection, args.threshold)
+    findings += detect_sudo_repeated_failures(connection, args.threshold)
 
     if args.anonymize:
         anonymizer = IpAnonymizer()
