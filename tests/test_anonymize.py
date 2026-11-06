@@ -28,3 +28,17 @@ def test_cli_anonymize_hides_ips_in_console_and_export(tmp_path):
     assert "ip-001" in result.stdout
     json_result = run("sample_data/auth.log", "--database", str(tmp_path / "t2.db"), "--anonymize", "--json")
     assert "192.0.2" not in json_result.stdout
+
+
+def test_anonymize_leaves_local_subject_and_username_untouched():
+    anon = IpAnonymizer()
+    finding = Finding(
+        "SUDO-REPEATED-FAILURES",
+        "medium",
+        "local",
+        5,
+        "5 failed sudo authentication attempts for user alex",
+    )
+    out = anon.finding(finding)
+    assert out.source_ip == "local"
+    assert "alex" in out.summary
