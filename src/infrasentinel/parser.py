@@ -10,6 +10,10 @@ _PREFIX = re.compile(
     r"^(?P<timestamp>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+"
     r"(?P<host>\S+)\s+(?P<service>[\w-]+)(?:\[\d+\])?:\s+(?P<body>.*)$"
 )
+_ISO_PREFIX = re.compile(
+    r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)\s+"
+    r"(?P<host>\S+)\s+(?P<service>[\w-]+)(?:\[\d+\])?:\s+(?P<body>.*)$"
+)
 _FAILED = re.compile(
     r"Failed password for (?:invalid user )?(?P<user>\S+) from (?P<ip>\S+)"
 )
@@ -56,16 +60,32 @@ def _with_year(timestamp: str, year: int, tz: tzinfo | None = None) -> str | Non
     return parsed.isoformat()
 
 
-def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> AuthEvent | None:
-    """Parse a supported syslog authentication line without raising on unknown input.
+def _normalize_iso(timestamp: str) -> str | None:
+    """Normalize a complete ISO 8601 timestamp, or None if it is invalid.
 
-    Syslog timestamps have no year and no time zone. With *year*, occurred_at
+    journalctl's short-iso output writes the offset as -0600; the stored form
+    uses the standard -06:00. The logged time is never converted.
+    """
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return None
+    return parsed.isoformat()
+
+
+def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> AuthEvent | None:
+    """Parse a supported syslog or journalctl authentication line without raising on unknown input.
+
+    journalctl's short-iso and short-iso-precise timestamps carry their own
+    date and UTC offset and are stored as logged. Syslog timestamps have no
+    year and no time zone. With *year*, occurred_at
     becomes an ISO timestamp; lines whose date does not exist in that year are
     skipped. With *tz*, the ISO timestamp records the log's time zone as a UTC
     offset. Without *tz*, no zone is guessed.
     """
     line = line.rstrip("\n")
-    prefix = _PREFIX.match(line)
+    iso = _ISO_PREFIX.match(line)
+    prefix = iso or _PREFIX.match(line)
     if not prefix or prefix.group("service") != "sshd":
         return None
 
@@ -83,7 +103,13 @@ def parse_line(line: str, year: int | None = None, tz: tzinfo | None = None) -> 
                 # Reject malformed source addresses instead of saving a partial match.
                 return None
             occurred_at = prefix.group("timestamp")
-            if year is not None:
+            if iso:
+                # journalctl ISO lines carry their own date and offset, so
+                # the year and tz options do not apply to them.
+                occurred_at = _normalize_iso(occurred_at)
+                if occurred_at is None:
+                    return None
+            elif year is not None:
                 occurred_at = _with_year(occurred_at, year, tz)
                 if occurred_at is None:
                     return None

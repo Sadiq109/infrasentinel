@@ -7,6 +7,7 @@ InfraSentinel is a privacy-first Python CLI that converts Linux authentication l
 ## What works
 
 - Parses common OpenSSH accepted, failed-password, and invalid-user events from `sshd` syslog entries only; similar text quoted by other services is ignored
+- Accepts both traditional syslog timestamps and `journalctl -o short-iso` / `short-iso-precise` timestamps
 - Supports IPv4 and IPv6 source addresses, rejecting malformed source addresses rather than silently storing a partial match
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
@@ -62,6 +63,17 @@ To catch fast bursts, add `--window-seconds 60` (it needs `--year`). An IP is fl
 Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such as `2026-09-20T10:15:01` instead of `Sep 20 10:15:01`. Lines with a date that does not exist in that year (for example Feb 29 in 2026) are skipped. Without `--year`, behavior is unchanged. Time zones are not guessed: timestamps stay in the host's local time as logged.
 
 `--timezone` records which time zone the log was written in (it needs `--year`). It accepts `UTC`, a fixed offset like `-05:00`, or an IANA name like `America/Chicago`, and daylight-saving changes are applied for each event's date. The logged local time is never converted; the offset is attached to it, so `Sep 20 10:15:01` becomes `2026-09-20T10:15:01-05:00`. Window detection compares zoned events in absolute time and never mixes them with year-only timestamps, which cannot be placed in absolute time.
+
+journalctl exports work too: lines from `journalctl -o short-iso` or `short-iso-precise` carry a complete ISO 8601 timestamp with a date and UTC offset, so they are stored as logged (the offset is normalized from `-0600` to `-06:00`, and fractional seconds are kept). `--year` and `--timezone` do not apply to these lines; they only supply what yearless syslog timestamps lack.
+
+```bash
+infrasentinel sample_data/auth-journalctl.log --threshold 5
+```
+
+```text
+Imported 5 new events into infrasentinel.db
+[MEDIUM] AUTH-BRUTE-FORCE 198.51.100.23: 5 unsuccessful authentication attempts
+```
 
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.
 
