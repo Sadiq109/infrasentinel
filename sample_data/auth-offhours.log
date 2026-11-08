@@ -1,0 +1,5 @@
+Sep 20 03:12:44 web01 sshd[101]: Accepted password for alex from 203.0.113.50 port 51122 ssh2
+Sep 20 03:40:02 web01 sshd[102]: Accepted publickey for deploy from 203.0.113.50 port 51140 ssh2
+Sep 20 14:05:19 web01 sshd[103]: Accepted password for alex from 203.0.113.50 port 51201 ssh2
+Sep 20 02:15:55 web01 sshd[104]: Failed password for invalid user admin from 198.51.100.9 port 42210 ssh2
+Sep 20 05:59:01 web01 sshd[105]: Accepted password for sam from 198.51.100.9 port 42290 ssh2

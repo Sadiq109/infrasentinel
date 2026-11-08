@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -130,3 +131,46 @@ def detect_success_after_failures(
                 )
             )
     return findings
+
+
+_ISO_HOUR = re.compile(r"T(\d{2}):\d{2}:\d{2}")
+_SYSLOG_HOUR = re.compile(r"\s(\d{2}):\d{2}:\d{2}$")
+
+
+def _log_hour(occurred_at: str) -> int | None:
+    """Hour of day in the log's local time, from an ISO or syslog timestamp."""
+    match = _ISO_HOUR.search(occurred_at) or _SYSLOG_HOUR.search(occurred_at)
+    return int(match.group(1)) if match else None
+
+
+def detect_off_hours_success(connection: sqlite3.Connection) -> list[Finding]:
+    """Flag logins accepted between 00:00 and 06:00 in the log's local time.
+
+    Night logins are often legitimate (maintenance, cron, on-call), so this
+    reports what happened for review without claiming misuse. Only accepted
+    logins are considered; failures at night are already covered by the
+    unsuccessful-attempt rules.
+    """
+    rows = connection.execute(
+        """
+        SELECT source_ip, username, occurred_at
+        FROM auth_events
+        WHERE outcome = 'accepted' AND source_ip IS NOT NULL
+        ORDER BY id
+        """
+    ).fetchall()
+    per_ip: dict[str, int] = {}
+    for row in rows:
+        hour = _log_hour(row["occurred_at"])
+        if hour is not None and 0 <= hour < 6:
+            per_ip[row["source_ip"]] = per_ip.get(row["source_ip"], 0) + 1
+    return [
+        Finding(
+            rule="AUTH-OFF-HOURS-SUCCESS",
+            severity="low",
+            source_ip=ip,
+            count=count,
+            summary=f"{count} login(s) accepted between 00:00 and 06:00 local log time",
+        )
+        for ip, count in sorted(per_ip.items(), key=lambda item: (-item[1], item[0]))
+    ]

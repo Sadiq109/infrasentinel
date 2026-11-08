@@ -16,6 +16,7 @@ th { background: #f0f0f0; }
 .sev-critical { color: #b00020; font-weight: 600; }
 .sev-high { color: #b06000; font-weight: 600; }
 .sev-medium { color: #7a7000; }
+.sev-low { color: #555; }
 """
 
 

@@ -7,6 +7,7 @@ from .anonymize import IpAnonymizer
 from .detectors import (
     detect_brute_force,
     detect_brute_force_window,
+    detect_off_hours_success,
     detect_success_after_failures,
 )
 from .export import write_findings
@@ -132,6 +133,7 @@ def main() -> int:
         report = summarize(connection)
         findings = detect_brute_force(connection, args.threshold)
         findings += detect_success_after_failures(connection, args.threshold)
+        findings += detect_off_hours_success(connection)
         connection.close()
         if args.anonymize:
             anonymizer = IpAnonymizer()
@@ -163,6 +165,7 @@ def main() -> int:
     if args.window_seconds is not None:
         findings += detect_brute_force_window(connection, args.threshold, args.window_seconds)
     findings += detect_success_after_failures(connection, args.threshold)
+    findings += detect_off_hours_success(connection)
 
     if args.anonymize:
         anonymizer = IpAnonymizer()
