@@ -11,6 +11,7 @@ InfraSentinel is a privacy-first Python CLI that converts Linux authentication l
 - Stores normalized events in SQLite with duplicate protection and an index for investigations
 - Detects repeated unsuccessful authentication attempts with a configurable threshold
 - Flags a successful login that comes right after repeated failures from the same IP (a likely guessed password)
+- Notes logins accepted between 00:00 and 06:00 local log time as a low-severity review flag
 - Emits human-readable or JSON output, and can export findings to CSV or JSON Lines
 - Includes unit tests and safe synthetic sample data
 
@@ -62,6 +63,18 @@ To catch fast bursts, add `--window-seconds 60` (it needs `--year`). An IP is fl
 Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such as `2026-09-20T10:15:01` instead of `Sep 20 10:15:01`. Lines with a date that does not exist in that year (for example Feb 29 in 2026) are skipped. Without `--year`, behavior is unchanged. Time zones are not guessed: timestamps stay in the host's local time as logged.
 
 `--timezone` records which time zone the log was written in (it needs `--year`). It accepts `UTC`, a fixed offset like `-05:00`, or an IANA name like `America/Chicago`, and daylight-saving changes are applied for each event's date. The logged local time is never converted; the offset is attached to it, so `Sep 20 10:15:01` becomes `2026-09-20T10:15:01-05:00`. Window detection compares zoned events in absolute time and never mixes them with year-only timestamps, which cannot be placed in absolute time.
+
+The off-hours rule flags accepted logins between 00:00 and 06:00 in the log's local time as `AUTH-OFF-HOURS-SUCCESS` (low severity). Night logins are often legitimate maintenance or on-call work, so the finding reports what happened for review without claiming misuse. Only accepted logins are considered; failed attempts at night are already covered by the unsuccessful-attempt rules.
+
+```bash
+infrasentinel sample_data/auth-offhours.log --threshold 5
+```
+
+```text
+Imported 5 new events into infrasentinel.db
+[LOW] AUTH-OFF-HOURS-SUCCESS 203.0.113.50: 2 login(s) accepted between 00:00 and 06:00 local log time
+[LOW] AUTH-OFF-HOURS-SUCCESS 198.51.100.9: 1 login(s) accepted between 00:00 and 06:00 local log time
+```
 
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.
 
