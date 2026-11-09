@@ -43,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="time zone the log was written in: UTC, an offset like -05:00, or an IANA name like America/Chicago (needs --year)",
     )
     parser.add_argument("--anonymize", action="store_true", help="Replace source IPs with ip-001 style labels in output and exports")
+    parser.add_argument(
+        "--fail-on-findings",
+        action="store_true",
+        help="Exit 1 when the import detects findings (for cron and monitoring); the default exit is 0 either way",
+    )
     parser.add_argument("--export-format", choices=("csv", "jsonl"), default="csv")
     return parser
 
@@ -180,7 +185,7 @@ def main() -> int:
                 f"[{finding.severity.upper()}] {finding.rule} "
                 f"{finding.source_ip}: {finding.summary}"
             )
-    return 0
+    return 1 if args.fail_on_findings and findings else 0
 
 
 if __name__ == "__main__":
