@@ -63,6 +63,12 @@ Syslog lines carry no year. Pass `--year 2026` to store full ISO timestamps such
 
 `--timezone` records which time zone the log was written in (it needs `--year`). It accepts `UTC`, a fixed offset like `-05:00`, or an IANA name like `America/Chicago`, and daylight-saving changes are applied for each event's date. The logged local time is never converted; the offset is attached to it, so `Sep 20 10:15:01` becomes `2026-09-20T10:15:01-05:00`. Window detection compares zoned events in absolute time and never mixes them with year-only timestamps, which cannot be placed in absolute time.
 
+Imports exit 0 whether or not findings are detected, because findings are data, not errors. For cron or monitoring that should alert on findings, add `--fail-on-findings`: the exit code becomes 1 when any finding is detected, and stays 0 when the run is clean. A failed run (for example an unreadable log) exits nonzero with an error message and no findings output.
+
+```bash
+infrasentinel sample_data/auth.log --threshold 5 --fail-on-findings || echo "findings need review"
+```
+
 For demos or screenshots, add `--anonymize` to replace source IPs with labels such as `ip-001` in console output, JSON and exports. The same IP gets the same label within one run, and the mapping is never saved. It does not change the stored database, which still holds the real addresses, and usernames are not masked.
 
 Damaged logs do not abort an import: invalid bytes are replaced and unparseable lines are skipped. A missing or unreadable log file exits with a short error instead of a traceback.
